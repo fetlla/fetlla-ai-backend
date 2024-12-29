@@ -40,8 +40,7 @@ async def login_llm(login_request: LoginRequest):
 
 @router.post("/login-normal")
 async def login_normal(login_request: LoginRequest, db: db_dependency):
-    user = authenticate_user(login_request.username,
-                             login_request.password, db)
+    user = authenticate_user(login_request.username, login_request.password, db)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user.')
