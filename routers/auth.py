@@ -1,14 +1,13 @@
-from datetime import datetime, timezone, timedelta
+from datetime import timedelta
 
 import jwt
 from fastapi.routing import APIRouter
-from fastapi import Depends, HTTPException
-from pydantic import BaseModel, field_validator, EmailStr, Field
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+from fastapi import HTTPException,Response
+from pydantic import BaseModel, Field
 from starlette import status
 
 from dependencies import bcrypt_context, db_dependency
-from llm.llm import login, llm_based_login, LoginRequest
+from llm.llm import  llm_based_login, LoginRequest
 from models import Users
 from utils.auth_utils import authenticate_user, create_access_token
 
@@ -31,11 +30,16 @@ class UserResponse(BaseModel):
     first_name: str
     last_name: str
 
+class LoginResponse(BaseModel):
+    message: str
 
 @router.post("/login")
 async def login_llm(login_request: LoginRequest):
     res = llm_based_login(login_request)
-    return res
+    if not res.success:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=res.detail)
+    return {"detail":res.detail}
 
 
 @router.post("/login-normal")
@@ -46,7 +50,7 @@ async def login_normal(login_request: LoginRequest, db: db_dependency):
             status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user.')
     token = create_access_token(
         user.username, user.id, user.role, timedelta(minutes=15))
-    return {"detail": "Login success", 'token': token}
+    return {"detail": {"token":token} }
 
 
 @router.post("/register")

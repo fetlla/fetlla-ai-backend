@@ -15,7 +15,7 @@ async def validation_exception_handler(request:Request,exc:RequestValidationErro
     first_error = exc.errors()[0] if exc.errors() else {}
     error_message = first_error.get('msg','Validation Error')
     error_field = first_error.get('loc', [''])[1] if len(first_error.get('loc', [])) > 1 else ''
-    return JSONResponse(status_code=400,content={"message":f"{error_field} {error_message}"})
+    return JSONResponse(status_code=400,content={"detail":f"{error_field} {error_message}"})
 
 
 @app.get("/")
