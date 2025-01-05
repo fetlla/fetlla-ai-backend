@@ -3,7 +3,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from routers import auth
-from models import Base
+from db.models import Base
 from database import engine
 
 app = FastAPI()

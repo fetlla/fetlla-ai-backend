@@ -5,24 +5,18 @@ import string
 from dotenv import load_dotenv, find_dotenv
 from pydantic import BaseModel, ValidationError
 
-from dependencies import get_db, bcrypt_context, db_dependency
-from models import Users
-from utils.auth_utils import authenticate_user
+from dependencies import bcrypt_context
+from db.models import Users
+from pydantic_models.models import LoginRequest
+from utils.auth_utils import authenticate_user, inject_db
 from fastapi_injectable import injectable
 import google.generativeai as genai
 
 load_dotenv(find_dotenv())
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 
-@injectable
-def inject_db(db: db_dependency):
-    return db
 
-
-class LoginRequest(BaseModel):
-    username: str
-    password: str
 
 
 class LLMLoginResponse(BaseModel):

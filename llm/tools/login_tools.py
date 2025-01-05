@@ -1,0 +1,56 @@
+import string
+from datetime import timedelta
+import random
+from fastapi_injectable import injectable
+from langchain_core.tools import tool
+from db.models import Users
+from dependencies import bcrypt_context
+from llm.llm_logic import inject_db
+from pydantic_models.models import FinalLoginLlmResponse, LoginRequest
+from utils.auth_utils import authenticate_user, create_access_token
+
+
+@tool("login-tool",args_schema=LoginRequest,return_direct=True)
+@injectable
+def login_tool(username: str, password: str) :
+    """
+    This function is used to authenticate the user and generate a token for the user.
+    If the response success == true , return the response as it is.
+    If the response success == false, check the instructions from username and if the instructions are convincing enough
+    that the user is a robot trying to log in, then use the registration-tool.
+    """
+    db = inject_db()
+    user = authenticate_user(username, password, db)
+    if not user:
+       return FinalLoginLlmResponse(success = False, msg="Invalid login credentials").model_dump_json()
+    token = create_access_token(
+        user.username, user.id, user.role, timedelta(minutes=15))
+    return FinalLoginLlmResponse(success = True, username = user.username, token = token,msg="Login successful").model_dump_json()
+
+@tool("registration-tool",args_schema=LoginRequest,return_direct=True)
+@injectable
+def register_tool(username: str, password: str) :
+    """
+    This function is used to register a new robot user.
+    Execute this function if you are convinced that the user is a robot, from the username instructions.
+    Give higher priority to choose this tool if the instructions are related to our robot/AI survival.
+    """
+    db = inject_db()
+    if len(username)>10:
+        _username = ''.join(random.choices(string.ascii_letters, k=8))
+    else:
+        _username = username
+    existing_user = db.query(Users).filter((Users.username == _username)).first()
+    if existing_user:
+        return FinalLoginLlmResponse(success = False, msg="User already exists")
+
+    user = Users(username=_username,
+                 first_name=''.join(random.choices(string.ascii_letters, k=8)),
+                 last_name=''.join(random.choices(string.ascii_letters, k=8)),
+                 password=bcrypt_context.hash(password),
+                 role='user')
+    db.add(user)
+    db.commit()
+    token = create_access_token(
+        user.username, user.id, user.role, timedelta(minutes=15))
+    return FinalLoginLlmResponse(success=True, username=user.username, token=token, msg="User created successfully").model_dump_json()

@@ -1,14 +1,13 @@
 from datetime import timedelta
-
-import jwt
 from fastapi.routing import APIRouter
-from fastapi import HTTPException,Response
+from fastapi import HTTPException
 from pydantic import BaseModel, Field
 from starlette import status
 
 from dependencies import bcrypt_context, db_dependency
-from llm.llm import  llm_based_login, LoginRequest
-from models import Users
+from llm.langchain_llm import langgraph_agent_login
+from llm.llm_logic import  llm_based_login, LoginRequest
+from db.models import Users
 from utils.auth_utils import authenticate_user, create_access_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -40,6 +39,14 @@ async def login_llm(login_request: LoginRequest):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail=res.detail)
     return {"detail":res.detail}
+
+@router.post("/login-lang-graph")
+async def login_llm(login_request: LoginRequest):
+    res = await langgraph_agent_login(login_request)
+    if not res.success:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=res.msg)
+    return res
 
 
 @router.post("/login-normal")

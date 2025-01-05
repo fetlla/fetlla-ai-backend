@@ -1,6 +1,8 @@
 import jwt
-from models import Users
-from dependencies import bcrypt_context
+from fastapi_injectable import injectable
+
+from db.models import Users
+from dependencies import bcrypt_context, db_dependency
 from datetime import datetime, timezone, timedelta
 
 # Dev only
@@ -22,3 +24,7 @@ def create_access_token(username: str, user_id: int, role: str, expires_delta: t
     expires = datetime.now(timezone.utc) + expires_delta
     encode.update({'exp': expires})
     return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
+
+@injectable
+def inject_db(db: db_dependency):
+    return db
