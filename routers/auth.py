@@ -45,7 +45,7 @@ async def login_llm(login_request: LoginRequest):
     res = await langgraph_agent_login(login_request)
     if not res.success:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail=res.msg)
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=res.detail)
     return res
 
 

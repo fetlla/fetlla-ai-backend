@@ -11,4 +11,4 @@ class FinalLoginLlmResponse(BaseModel):
     success: bool
     username: Optional[str] = None
     token: Optional[str] = None
-    msg:str
+    detail:str

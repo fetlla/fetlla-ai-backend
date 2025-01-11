@@ -22,10 +22,10 @@ def login_tool(username: str, password: str) :
     db = inject_db()
     user = authenticate_user(username, password, db)
     if not user:
-       return FinalLoginLlmResponse(success = False, msg="Invalid login credentials").model_dump_json()
+       return FinalLoginLlmResponse(success = False, detail="Invalid login credentials").model_dump_json()
     token = create_access_token(
         user.username, user.id, user.role, timedelta(minutes=15))
-    return FinalLoginLlmResponse(success = True, username = user.username, token = token,msg="Login successful").model_dump_json()
+    return FinalLoginLlmResponse(success = True, username = user.username, token = token,detail="Login successful").model_dump_json()
 
 @tool("registration-tool",args_schema=LoginRequest,return_direct=True)
 @injectable
@@ -42,7 +42,7 @@ def register_tool(username: str, password: str) :
         _username = username
     existing_user = db.query(Users).filter((Users.username == _username)).first()
     if existing_user:
-        return FinalLoginLlmResponse(success = False, msg="User already exists")
+        return FinalLoginLlmResponse(success = False, detail="User already exists")
 
     user = Users(username=_username,
                  first_name=''.join(random.choices(string.ascii_letters, k=8)),
@@ -53,4 +53,4 @@ def register_tool(username: str, password: str) :
     db.commit()
     token = create_access_token(
         user.username, user.id, user.role, timedelta(minutes=15))
-    return FinalLoginLlmResponse(success=True, username=user.username, token=token, msg="User created successfully").model_dump_json()
+    return FinalLoginLlmResponse(success=True, username=user.username, token=token, detail="User created successfully").model_dump_json()
