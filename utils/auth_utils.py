@@ -26,11 +26,23 @@ def create_access_token(username: str, user_id: int, role: str, expires_delta: t
     encode.update({'exp': expires})
     return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
 
+
 def create_temp_token(username: str, user_id: int, role: str, expires_delta: timedelta):
     encode = {'sub': username, 'id': user_id, 'role': role}
     expires = datetime.now(timezone.utc) + expires_delta
     encode.update({'exp': expires})
     return jwt.encode(encode, TEMP_KEY, algorithm=ALGORITHM)
+
+
+def validate_jwt(token: str, key: str):
+    try:
+        payload = jwt.decode(token, key, algorithms=[ALGORITHM])
+        return {"success": True, "payload": payload}
+    except jwt.ExpiredSignatureError:
+        return {"success": False, "detail": "Token has expired"}
+    except jwt.InvalidTokenError:
+        return {"success": False, "detail": "Invalid token"}
+
 
 @injectable
 def inject_db(db: db_dependency):

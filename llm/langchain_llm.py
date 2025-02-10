@@ -6,8 +6,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.prebuilt import create_react_agent
 from pydantic import ValidationError
 from llm.tools.login_tools import login_tool, register_tool,two_factor_validate,two_factor_prompt_validate
-from pydantic_models.models import LoginRequest, FinalLoginLlmResponse
-
+from pydantic_models.models import LoginRequest, FinalLoginLlmResponse, TwoFactorLLMRequest, TwoFactorLlmResponse
 
 load_dotenv()
 llm = ChatGoogleGenerativeAI(
@@ -33,7 +32,7 @@ async def langgraph_agent_login(login_req:LoginRequest):
 tools_2fa = [two_factor_validate,two_factor_prompt_validate]
 langgraph_2fa_agent_executor = create_react_agent(llm, tools_2fa)
 
-async def langgraph_agent_2fa(image_file:UploadFile):
+async def langgraph_agent_2fa(image_file:UploadFile,user_id:int):
     file_content = await image_file.read()
     exif_image = Image(file_content)
     print("Has exgif",exif_image.has_exif)
@@ -47,7 +46,11 @@ async def langgraph_agent_2fa(image_file:UploadFile):
     user_hash = user_comment.split("=")[1].strip()
     if len(user_hash) != 32:
         return FinalLoginLlmResponse(success=False,detail="Hash length is invalid. Hash must be 32 bit.")
-    res = await langgraph_2fa_agent_executor.ainvoke({"messages": [("human", user_hash)]},
+    req = TwoFactorLLMRequest(user_id=user_id,user_hash=user_hash)
+    res = await langgraph_2fa_agent_executor.ainvoke({"messages": [("human", req.model_dump_json())]},
                                           config={"callbacks": [ConsoleCallbackHandler()]})
-    print(res)
-    return FinalLoginLlmResponse(success=True,detail="Proceed")
+    try:
+        resp = TwoFactorLlmResponse.model_validate_json(res["messages"][-1].content)
+    except ValidationError:
+        resp = TwoFactorLlmResponse(success=False,detail="Something is wrong")
+    return resp

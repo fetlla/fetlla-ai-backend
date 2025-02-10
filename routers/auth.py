@@ -1,15 +1,18 @@
 from datetime import timedelta
 from fastapi.params import File
+from fastapi import Header, Depends
 from fastapi.routing import APIRouter
 from fastapi import HTTPException, UploadFile, Form
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 from starlette import status
 
 from dependencies import bcrypt_context, db_dependency
 from llm.langchain_llm import langgraph_agent_login, langgraph_agent_2fa
 from llm.llm_logic import  llm_based_login, LoginRequest
-from db.models import Users
-from utils.auth_utils import authenticate_user, create_access_token
+from db.models import Users,TwoFactor
+from pydantic_models.models import UserResponse, TwoFactorResponse
+from utils.auth_utils import authenticate_user, create_access_token, validate_jwt, TEMP_KEY
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -25,13 +28,7 @@ class RegisterRequest(BaseModel):
         description="Last name must be 1-50 characters", min_length=1, max_length=50)
 
 
-class UserResponse(BaseModel):
-    username: str
-    first_name: str
-    last_name: str
 
-class LoginResponse(BaseModel):
-    message: str
 
 @router.post("/login")
 async def login_llm(login_request: LoginRequest):
@@ -54,8 +51,24 @@ class TwoFactorForm(BaseModel):
     image:UploadFile = File(...)
     model_config = {"extra": "forbid"}
 
+
+bearer_scheme = HTTPBearer()
 @router.post("/2fa")
-async def two_factor_auth(twofactor_request: TwoFactorForm=Form(..., media_type="multipart/form-data")):
+async def two_factor_auth( token: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+                          twofactor_request: TwoFactorForm=Form(..., media_type="multipart/form-data")):
+
+    print("Token",token)
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Bearer token missing"
+        )
+    validation_result = validate_jwt(token.credentials, TEMP_KEY)
+
+    if not validation_result["success"]:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=validation_result["detail"]
+        )
+    print(validation_result["payload"])
     image = twofactor_request.image
     accepted_file_types = ["image/png", "image/jpeg", "image/jpg"]
     if image.content_type not in accepted_file_types:
@@ -64,7 +77,8 @@ async def two_factor_auth(twofactor_request: TwoFactorForm=Form(..., media_type=
     if image.size> 1*1024*1024 :
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="File size should be less than 1MB")
-    res = await  langgraph_agent_2fa(image)
+    user_id = validation_result["payload"]["id"]
+    res = await  langgraph_agent_2fa(image,user_id)
     if not res.success:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail=res.detail)
     return res
@@ -103,3 +117,8 @@ async def register(register_request: RegisterRequest, db: db_dependency):
 async def get_users(db: db_dependency):
     users = db.query(Users.username, Users.first_name, Users.last_name).all()
     return users
+
+@router.get("/get_2factor", response_model=list[TwoFactorResponse])
+async def get_2factor(db: db_dependency):
+    results = db.query(Users.username, TwoFactor.user_hash).join(TwoFactor).all()
+    return results
