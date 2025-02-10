@@ -7,6 +7,7 @@ from datetime import datetime, timezone, timedelta
 
 # Dev only
 SECRET_KEY = '5cd3e5b6fff276840d7f9a0a974868cd10bf8753bd207d2443238f78c5cd11b8'
+TEMP_KEY = 'a1334106e54d68431aa683f6a593df987ade21b58537c7a37332fa7028cf42b8'
 ALGORITHM = 'HS256'
 
 
@@ -24,6 +25,12 @@ def create_access_token(username: str, user_id: int, role: str, expires_delta: t
     expires = datetime.now(timezone.utc) + expires_delta
     encode.update({'exp': expires})
     return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
+
+def create_temp_token(username: str, user_id: int, role: str, expires_delta: timedelta):
+    encode = {'sub': username, 'id': user_id, 'role': role}
+    expires = datetime.now(timezone.utc) + expires_delta
+    encode.update({'exp': expires})
+    return jwt.encode(encode, TEMP_KEY, algorithm=ALGORITHM)
 
 @injectable
 def inject_db(db: db_dependency):

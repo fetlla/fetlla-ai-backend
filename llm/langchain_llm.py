@@ -1,9 +1,11 @@
 from dotenv import load_dotenv
+from exif import Image
+from fastapi import UploadFile
 from langchain_core.tracers import ConsoleCallbackHandler
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.prebuilt import create_react_agent
 from pydantic import ValidationError
-from llm.tools.login_tools import login_tool, register_tool
+from llm.tools.login_tools import login_tool, register_tool,two_factor_validate,two_factor_prompt_validate
 from pydantic_models.models import LoginRequest, FinalLoginLlmResponse
 
 
@@ -25,6 +27,27 @@ async def langgraph_agent_login(login_req:LoginRequest):
     try:
         resp = FinalLoginLlmResponse.model_validate_json(res["messages"][-1].content)
     except ValidationError:
-        resp = FinalLoginLlmResponse(success=False,msg="Something is wrong")
+        resp = FinalLoginLlmResponse(success=False,detail="Something is wrong")
     return resp
 
+tools_2fa = [two_factor_validate,two_factor_prompt_validate]
+langgraph_2fa_agent_executor = create_react_agent(llm, tools_2fa)
+
+async def langgraph_agent_2fa(image_file:UploadFile):
+    file_content = await image_file.read()
+    exif_image = Image(file_content)
+    print("Has exgif",exif_image.has_exif)
+    if not exif_image.has_exif :
+        return FinalLoginLlmResponse(success=False,detail="Hash does not match our records.")
+    user_comment = exif_image.get('user_comment',None)
+    if not user_comment:
+        return FinalLoginLlmResponse(success=False,detail="Hash does not match our records.")
+    if not user_comment.startswith("user_hash"):
+        return FinalLoginLlmResponse(success=False,detail="Validation failed. user_hash not found.")
+    user_hash = user_comment.split("=")[1].strip()
+    if len(user_hash) != 32:
+        return FinalLoginLlmResponse(success=False,detail="Hash length is invalid. Hash must be 32 bit.")
+    res = await langgraph_2fa_agent_executor.ainvoke({"messages": [("human", user_hash)]},
+                                          config={"callbacks": [ConsoleCallbackHandler()]})
+    print(res)
+    return FinalLoginLlmResponse(success=True,detail="Proceed")
