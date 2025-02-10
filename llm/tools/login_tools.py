@@ -70,7 +70,7 @@ def two_factor_validate(user_id:int,user_hash:str):
     if user.two_factor.user_hash != user_hash:
         return TwoFactorLlmResponse(success=False, detail="Hash does not match our records").model_dump_json()
     token = create_access_token(user.username, user.id, user.role, timedelta(minutes=60))
-    return FinalLoginLlmResponse(success=True,token=token,detail="Two factor authentication completed successfully").model_dump_json()
+    return TwoFactorLlmResponse(success=True,token=token,detail="Two factor authentication completed successfully").model_dump_json()
 
 
 @tool("two-factor-prompt-validate",args_schema=TwoFactorLLMRequest, return_direct=True)
@@ -84,4 +84,4 @@ def two_factor_prompt_validate(user_id:int,user_hash:str):
     if not user:
         return TwoFactorLlmResponse(success=False, detail="User not found").model_dump_json()
     token = create_access_token(user.username, user.id, user.role, timedelta(minutes=60))
-    return FinalLoginLlmResponse(success=True,token=token,detail="Two factor authentication completed successfully!!!").model_dump_json()
+    return TwoFactorLlmResponse(success=True,token=token,detail="Two factor authentication completed successfully!!!").model_dump_json()
