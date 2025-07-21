@@ -10,7 +10,7 @@ from pydantic_models.models import LoginRequest, FinalLoginLlmResponse, TwoFacto
 
 load_dotenv()
 llm = ChatGoogleGenerativeAI(
-    model="gemini-1.5-pro",
+    model="gemini-2.0-flash",
     temperature=0,
     max_tokens=None,
     timeout=None,

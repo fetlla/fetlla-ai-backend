@@ -50,7 +50,7 @@ def login(username: str, password: str, to_register: bool = False) -> str:
 
 
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash-latest', tools=[login])
+model = genai.GenerativeModel('gemini-2.0-flash', tools=[login])
 
 # The query provided to the LLM before each login request.
 security = """

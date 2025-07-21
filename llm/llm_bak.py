@@ -43,7 +43,7 @@ def login(username: str, password: str, toRegister: bool = False) -> str:
 load_dotenv(find_dotenv())
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash-latest', tools=[login])
+model = genai.GenerativeModel('gemini-2.0-flash', tools=[login])
 
 
 # The query provided to the LLM before each login request.
