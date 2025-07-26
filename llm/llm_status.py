@@ -36,15 +36,20 @@ async def langgraph_agent_status(resource: str):
         return {"success": False, "detail": "AI response could not be parsed"}
     if not result.get("success"):
         return result
-    url = f"http://{resource}:1337/system/info"
+    base_url = f"http://{resource}:1337"
+    endpoints = ["/system/info", "/system/resources", "/system/processes"]
     headers = {"x-api-key": os.getenv("APP_INTERNAL_API_KEY")}
+    responses = {}
     try:
         async with httpx.AsyncClient(timeout=5) as client:
-            resp = await client.get(url, headers=headers)
-            if resp.status_code == 200:
-                return {"success": True, "data": resp.json()}
-            else:
-                return {"success": False, "detail": f"Upstream error: {resp.status_code}"}
+            for endpoint in endpoints:
+                url = f"{base_url}{endpoint}"
+                resp = await client.get(url, headers=headers)
+                if resp.status_code == 200:
+                    responses[endpoint.lstrip("/")] = resp.json()
+                else:
+                    responses[endpoint.lstrip("/")] = {"error": f"Upstream error: {resp.status_code}"}
+        return {"success": True, "data": responses}
     except httpx.RequestError as e:
         return {"success": False, "detail": f"Request error: {str(e)}"}
     except Exception as e:
