@@ -12,6 +12,7 @@ click==8.1.7
 dataclasses-json==0.6.7
 dnspython==2.7.0
 email_validator==2.2.0
+exif==1.6.1
 fastapi==0.115.6
 fastapi-cli==0.0.7
 fastapi-injectable==0.2.0
@@ -58,6 +59,7 @@ numpy==2.2.1
 orjson==3.10.13
 packaging==24.2
 passlib==1.7.4
+plum-py==0.8.7
 propcache==0.2.1
 proto-plus==1.25.0
 protobuf==5.29.2

@@ -86,7 +86,7 @@ chat = model.start_chat(enable_automatic_function_calling=True)
 
 def llm_based_login(login_request: LoginRequest) -> LLMLoginResponse:
     # Here we are sending the login request prepended with the query for LLM.
-    login_json = login_request.json()
+    login_json = login_request.model_dump_json()
     res = chat.send_message(security + login_json)
     json_content = res.text.strip("```json\n").strip("\n```")
     print(json_content)

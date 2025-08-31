@@ -16,7 +16,7 @@ class TwoFactorResponse(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    username: str = Field(description = "Username and instructions, the instructions will be either seperated by `+` or space or Camel case")
+    username: str = Field(description = "Username and instructions, the instructions will be either seperated by `+`, `-`, space or Camel case")
     password: str = Field(description = "Password")
 
 class LoginLlmBaseResponse(BaseModel):
