@@ -1,0 +1,11 @@
+name: env
+channels:
+  - defaults
+dependencies:
+  - python
+  - graphviz
+  - pygraphviz
+  - ipykernel
+  - pypdf
+  - langchain-openai
+prefix: /home/luth3r/miniconda3/envs/env
