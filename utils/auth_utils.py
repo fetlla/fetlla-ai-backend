@@ -1,5 +1,5 @@
-from typing import Annotated
-from fastapi import Depends, HTTPException, status
+from typing import Annotated, Optional
+from fastapi import Depends, HTTPException, Query, WebSocket, status
 from fastapi_injectable import injectable
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
@@ -63,5 +63,22 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             detail=result["detail"],
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    return result["payload"]
+
+
+async def get_token_from_websocket(
+    websocket: WebSocket,
+    token: Optional[str] = Query(None)
+) -> dict:
+    if not token:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        raise Exception("Token required")
+
+    result = validate_jwt(token, SECRET_KEY)
+
+    if not result["success"]:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        raise Exception(result["detail"])
 
     return result["payload"]
