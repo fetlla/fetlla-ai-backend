@@ -1,6 +1,8 @@
-import jwt
+from typing import Annotated
+from fastapi import Depends, HTTPException, status
 from fastapi_injectable import injectable
-
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import jwt
 from db.models import Users
 from dependencies import bcrypt_context, db_dependency
 from datetime import datetime, timezone, timedelta
@@ -47,3 +49,19 @@ def validate_jwt(token: str, key: str):
 @injectable
 def inject_db(db: db_dependency):
     return db
+
+
+security = HTTPBearer()
+
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
+    token = credentials.credentials
+    result = validate_jwt(token, SECRET_KEY)
+    if not result["success"]:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=result["detail"],
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return result["payload"]
