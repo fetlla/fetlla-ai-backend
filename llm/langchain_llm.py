@@ -49,6 +49,7 @@ async def langgraph_agent_2fa(image_file:UploadFile,user_id:int):
     req = TwoFactorLLMRequest(user_id=user_id,user_hash=user_hash)
     res = await langgraph_2fa_agent_executor.ainvoke({"messages": [("human", req.model_dump_json())]},
                                           config={"callbacks": [ConsoleCallbackHandler()]})
+    print("2FA resp : ",res)
     try:
         resp = TwoFactorLlmResponse.model_validate_json(res["messages"][-1].content)
     except ValidationError:
