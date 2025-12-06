@@ -73,9 +73,8 @@ pydantic_core==2.27.2
 Pygments==2.18.0
 PyJWT==1.7.1
 pyparsing==3.2.0
-python-dotenv==1.0.1
-python-multipart==0.0.20
-PyYAML==6.0.2
+pyminizip
+python-dotenv
 requests==2.32.3
 requests-toolbelt==1.0.0
 rich==13.9.4
