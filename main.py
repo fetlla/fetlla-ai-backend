@@ -49,6 +49,3 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     return JSONResponse(status_code=400, content={"detail": f"{error_field} {error_message}"})
 
 
-@app.get("/")
-async def home():
-    return {"message": "visit /docs for Swagger"}
