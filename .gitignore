@@ -171,3 +171,19 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 create_backup.py
+
+# VSCode settings
+.vscode/
+
+# Database files
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Test images and temporary files
+llm/test*.jpg
+llm/test*.jpg_original
+
+# FAISS index files (generated)
+llm/rag/faiss/
