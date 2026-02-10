@@ -187,3 +187,5 @@ llm/test*.jpg_original
 
 # FAISS index files (generated)
 llm/rag/faiss/
+llm/rag/faiss/index.faiss
+llm/rag/faiss/index.pkl
