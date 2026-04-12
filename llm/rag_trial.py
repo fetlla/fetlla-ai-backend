@@ -4,16 +4,15 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains.retrieval import create_retrieval_chain
 from langchain.globals import set_verbose
 from langchain_core.tracers import ConsoleCallbackHandler
-from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
+from llm.gateway import TinyLlamaGateway, get_embeddings
+from llm.gateway import TinyLlamaGateway
 from langchain_text_splitters import CharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.vectorstores import FAISS
 
-
-
 load_dotenv()
 
-embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
+embeddings = get_embeddings()
 
 
 def init_doc():
@@ -47,13 +46,7 @@ def load_or_init_vector_store():
 if __name__ == '__main__':
     local_vector_store = load_or_init_vector_store()
     prompt = hub.pull("langchain-ai/retrieval-qa-chat")
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
-        temperature=0,
-        max_tokens=None,
-        timeout=None,
-        max_retries=2
-    )
+    llm = TinyLlamaGateway()
     combine_docs_chain = create_stuff_documents_chain(llm, prompt)
     retrieval_chain = create_retrieval_chain(retriever=local_vector_store.as_retriever(),
                                             combine_docs_chain=combine_docs_chain)

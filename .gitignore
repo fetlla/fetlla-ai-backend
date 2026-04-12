@@ -189,3 +189,4 @@ llm/test*.jpg_original
 llm/rag/faiss/
 llm/rag/faiss/index.faiss
 llm/rag/faiss/index.pkl
+tests/

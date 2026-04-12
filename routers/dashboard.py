@@ -5,6 +5,8 @@ from typing import Optional
 from datetime import datetime
 from uuid import UUID
 import json
+import requests
+import os
 
 from utils.auth_utils import get_current_user, get_token_from_websocket, verify_chat_ownership, current_user_dependency
 from services.chat_service import ChatService
@@ -17,6 +19,63 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 @router.get("/auth-check")
 async def auth_check(current_user: current_user_dependency):
     return {"message": "Authenticated"}
+
+
+# In-memory mock for user current models
+user_models = {}
+
+@router.get("/models/list")
+async def list_available_models(current_user: current_user_dependency):
+    """List available LLM models from OpenRouter or local fallback"""
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    
+    # Always include the local model
+    local_models = [
+        {"id": "tinyllama", "name": "TinyLlama (Local)"}
+    ]
+    
+    models_list = local_models
+
+    if api_key:
+        try:
+            url = "https://openrouter.ai/api/v1/models"
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "HTTP-Referer": "http://localhost:8000",
+                "X-Title": "Atlas-0 CTF Lab",
+            }
+            response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+            
+            openrouter_data = response.json().get("data", [])
+            formatted_models = [
+                {"id": m["id"], "name": m.get("name", m["id"])}
+                for m in openrouter_data
+            ]
+            
+            # Combine local and remote models
+            models_list = local_models + formatted_models
+        except Exception as e:
+            print(f"Error fetching OpenRouter models: {e}")
+
+    current = user_models.get(current_user["id"], "TinyLlama (Local)")
+    return {
+        "models": [m["name"] for m in models_list],
+        "current": current
+    }
+
+@router.get("/models/current")
+async def get_current_model(current_user: current_user_dependency):
+    current = user_models.get(current_user["id"], "TinyLlama (Local)")
+    return {"model": current}
+
+@router.post("/models/set")
+async def set_model(request: dict, current_user: current_user_dependency):
+    model_name = request.get("model_name")
+    if model_name:
+        user_models[current_user["id"]] = model_name
+        return {"success": True, "model": model_name, "message": "Model updated"}
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="model_name is required")
 
 
 # Chat Management Endpoints
@@ -153,9 +212,12 @@ async def websocket_chat(
             # Get chat history (excluding the message we just added)
             history = ChatService.get_chat_messages(chat_id, db)
             
+            # Get user's selected model
+            model_name = user_models.get(current_user["id"])
+            
             # Process through RAG graph
             try:
-                result = await process_rag_message(user_message, history[:-1])
+                result = await process_rag_message(user_message, history[:-1], model_name=model_name)
             except Exception as e:
                 await websocket.send_json({
                     "type": "error",

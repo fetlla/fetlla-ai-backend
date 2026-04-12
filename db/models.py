@@ -59,12 +59,3 @@ class ChatMessage(Base):
     chat:Mapped["Chat"] = relationship(back_populates="messages")
 
 
-
-@event.listens_for(Session, "after_flush")
-def create_two_factor(session, flush_context):
-    for instance in session.new:
-        if isinstance(instance, Users):
-            two_factor = TwoFactor(user=instance, user_hash=uuid.uuid4().hex)
-            session.add(two_factor)
-
-

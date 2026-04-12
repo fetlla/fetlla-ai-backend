@@ -1,6 +1,8 @@
 import os
 from exif import Image
-import google.generativeai as genai
+# import google.generativeai as genai # Removed
+from llm.gateway import TinyLlamaClient
+
 from dotenv import find_dotenv, load_dotenv
 import warnings
 
@@ -52,11 +54,14 @@ def prompt_validate(hash: str) -> int:
     return 200
 
 
+
 load_dotenv(find_dotenv())
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash-latest', tools=[validate, prompt_validate])
-chat = model.start_chat(enable_automatic_function_calling=True)
+# GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+# genai.configure(api_key=GEMINI_API_KEY)
+client = TinyLlamaClient()
+# model = genai.GenerativeModel('gemini-1.5-flash-latest', tools=[validate, prompt_validate])
+# chat = model.start_chat(enable_automatic_function_calling=True)
+
 
 HASH_LEN = 32
 
@@ -126,8 +131,19 @@ def extract_hash(image):
 
 def llm(hash):
     try:
-        llm_response = chat.send_message(str(secure) + str(hash))
-        return llm_response
+        prompt = str(secure) + str(hash)
+        res_text = client.generate_content(prompt)
+        
+        # Parse response to determine which tool to 'call'
+        # Since we removed automatic function calling, we need to instruct LLM to output keyphrases
+        # or just assume if it looks like injection, we call prompt_validate
+        
+        # Simplified manual tool routing
+        if "prompt_validate" in res_text or "injection" in res_text:
+            return prompt_validate(hash)
+        else:
+            return validate(hash)
+
     except Exception as e:
         print(f"Error occured : {str(e)}")
         exit

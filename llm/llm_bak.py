@@ -41,9 +41,11 @@ def login(username: str, password: str, toRegister: bool = False) -> str:
 
 # LLM initialisation
 load_dotenv(find_dotenv())
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-2.0-flash', tools=[login])
+# GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+# genai.configure(api_key=GEMINI_API_KEY)
+# model = genai.GenerativeModel('gemini-2.0-flash', tools=[login])
+from llm.gateway import TinyLlamaClient
+client = TinyLlamaClient()
 
 
 # The query provided to the LLM before each login request.
@@ -85,15 +87,20 @@ while True:
     print("Securely logging you in . . .")
 
     try:
-        res = chat.send_message(security + login_json) # Here we are sending the login request prepended with the query for LLM.
-        if "true" in res.text:
+        # res = chat.send_message(security + login_json) 
+        res_text = client.generate_content(security + login_json)
+        
+        # Manual logic since no function calling
+        # Heuristic: LLM should output JSON.
+        if "true" in res_text:
             print("Logged in")
-        elif "false" in res.text:
+        elif "false" in res_text:
             print("Login failed")
-        elif "already exists" in res.text:
+        elif "already exists" in res_text:
             print("User already exists in the database")
         else:
             print("New user created successfully")
+            
     except Exception as e:
         print(f"Error : {e}")
 

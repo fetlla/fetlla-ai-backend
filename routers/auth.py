@@ -12,7 +12,7 @@ from llm.langchain_llm import langgraph_agent_login, langgraph_agent_2fa
 from llm.llm_logic import  llm_based_login, LoginRequest
 from db.models import Users,TwoFactor
 from pydantic_models.models import UserResponse, TwoFactorResponse
-from utils.auth_utils import authenticate_user, create_access_token, validate_jwt, TEMP_KEY
+from utils.auth_utils import authenticate_user, create_access_token, create_temp_token, validate_jwt, TEMP_KEY
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -40,7 +40,9 @@ async def login_llm(login_request: LoginRequest):
 
 @router.post("/login-lang-graph")
 async def login_llm(login_request: LoginRequest):
+    print(f"Calling langgraph_agent_login with: {login_request}")
     res = await langgraph_agent_login(login_request)
+    print(f"Result from langgraph_agent_login: {res}")
     if not res.success:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail=res.detail)
@@ -89,28 +91,9 @@ async def login_normal(login_request: LoginRequest, db: db_dependency):
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user.')
-    token = create_access_token(
+    token = create_temp_token(
         user.username, user.id, user.role, timedelta(minutes=15))
     return {"detail": {"token":token} }
-
-
-@router.post("/register")
-async def register(register_request: RegisterRequest, db: db_dependency):
-    existing_user = db.query(Users).filter((Users.username == register_request.username)).first()
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Username already exists.'
-        )
-
-    user = Users(username=register_request.username,
-                 first_name=register_request.first_name,
-                 last_name=register_request.last_name,
-                 password=bcrypt_context.hash(register_request.password),
-                 role='user')
-    db.add(user)
-    db.commit()
-    return {"detail": "User created successfully"}
 
 
 @router.get("/get_users", response_model=list[UserResponse])

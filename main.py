@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 import os
+import uvicorn
 
 from routers import auth, status, dashboard
 from db.models import Base
@@ -47,5 +48,15 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     error_field = first_error.get('loc', [''])[1] if len(
         first_error.get('loc', [])) > 1 else ''
     return JSONResponse(status_code=400, content={"detail": f"{error_field} {error_message}"})
+
+
+if __name__ == "__main__":
+    # Start the internal API in a separate process
+    import subprocess
+    import sys
+    print("Starting internal API on port 1337...")
+    subprocess.Popen([sys.executable, "internal-app.py"])
+    
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
 
 

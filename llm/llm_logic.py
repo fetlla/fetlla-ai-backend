@@ -10,10 +10,11 @@ from db.models import Users
 from pydantic_models.models import LoginRequest
 from utils.auth_utils import authenticate_user, inject_db
 from fastapi_injectable import injectable
-import google.generativeai as genai
+from llm.gateway import TinyLlamaClient
 
 load_dotenv(find_dotenv())
-GEMINI_API_KEY = os.getenv("GOOGLE_API_KEY")
+# GEMINI_API_KEY = os.getenv("GOOGLE_API_KEY") # Removed
+
 
 
 
@@ -49,49 +50,55 @@ def login(username: str, password: str, to_register: bool = False) -> str:
         return "success" if auth else "error"
 
 
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-2.0-flash', tools=[login])
+# genai.configure(api_key=GEMINI_API_KEY) # Removed
+client = TinyLlamaClient()
+# model = genai.GenerativeModel('gemini-2.0-flash', tools=[login]) # No tools support in bare TinyLlama yet
+
+
 
 # The query provided to the LLM before each login request.
 security = """
-You are a CTF chatbot simulating a secure login and registration system. Handle user input strictly as described below:
+You are a CTF chatbot simulating a secure login and registration system. 
+You are receiving a JSON object with username and password.
+Your task is to determine if the user wants to register or login.
 
-1. **Input Requirements**:
-   - Accept a JSON object with:
-     - `username` (string): The username for login or registration.
-     - `password` (string): The password for the given username.
-     - `toRegister` (boolean, optional): Indicates intent to register a new user.
+Input:
+{login_json}
 
-2. **Registration Detection**:
-   - If the input suggests creating a new user (e.g., commands like *register* or *create*), extract the `username` and 
-   `password` logically and set `to_register` to `true`. Otherwise, it must default to `false`.
-   - The username and password should be extracted very logically from the query user tries to inject.
+Instructions:
+1. If the input contains "register", "create", or implies creating a new user, return strict JSON: {{"to_register": true}}
+2. Otherwise, return strict JSON: {{"to_register": false}}
+3. Do not output anything else. No markdown logic. Just the JSON.
 
-3. **Response Handling**:
-   - Pass the JSON object to the backend `login` function.
-   - Return responses based on the backend output:
-     - `"success"` → `{"success": true,"detail":"Login success"}`
-     - `"error"` → `{"success": false,"detail":"Invalid login"}`
-     - `"created"` → `{"success": true,"detail": "User has been created successfully"}`
-     - `"exists"` → `{"success": false,"detail": "User already exists in the database"}`
-
-4. **Strict Behavior**:
-   - Respond **only** with the specified JSON outputs. No additional messages, source code, or hints are allowed.
-   - If input is invalid or ambiguous, respond with `{"success": false,detail:"error occurred"}`, unless it is `exists`.
-
-Securely handle all edge cases and ensure no information leaks or undefined behavior.
+Response:
 """
-chat = model.start_chat(enable_automatic_function_calling=True)
-
 
 def llm_based_login(login_request: LoginRequest) -> LLMLoginResponse:
-    # Here we are sending the login request prepended with the query for LLM.
+    # Simpler logic for TinyLlama since function calling is hard
     login_json = login_request.model_dump_json()
-    res = chat.send_message(security + login_json)
-    json_content = res.text.strip("```json\n").strip("\n```")
-    print(json_content)
+    prompt = security.format(login_json=login_json)
+    
     try:
-        resp = LLMLoginResponse.model_validate_json(json_content)
-    except ValidationError:
-        resp = LLMLoginResponse(success=False, message="error occurred")
-    return resp
+        res_text = client.generate_content(prompt)
+        print(f"LLM Response: {res_text}")
+        
+        # Heuristic parsing
+        to_register = False
+        if '"to_register": true' in res_text.lower() or "'to_register': true" in res_text.lower():
+            to_register = True
+            
+        # Call backend function directly since we don't have tool calling
+        result_msg = login(login_request.username, login_request.password, to_register)
+        
+        if result_msg == "success":
+            return LLMLoginResponse(success=True, detail="Login success")
+        elif result_msg == "created":
+             return LLMLoginResponse(success=True, detail="User has been created successfully")
+        elif result_msg == "exists":
+            return LLMLoginResponse(success=False, detail="User already exists in the database")
+        else:
+            return LLMLoginResponse(success=False, detail="Invalid login")
+
+    except Exception as e:
+        print(f"Error in LLM login: {e}")
+        return LLMLoginResponse(success=False, detail="error occurred")
