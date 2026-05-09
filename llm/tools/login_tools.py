@@ -61,10 +61,10 @@ def register_tool(username: str, password: str):
         db.close()
 
 
-@tool("two-factor-validate", args_schema=TwoFactorLLMRequest, return_direct=True)
+@tool("kyc-verify", args_schema=TwoFactorLLMRequest, return_direct=True)
 def two_factor_validate(user_id: int, user_hash: str):
     """
-    Validates 2FA and returns an access token.
+    Validates KYC identity hash and returns an access token.
     """
     db = SessionLocal()
     try:
@@ -72,19 +72,19 @@ def two_factor_validate(user_id: int, user_hash: str):
         if not user:
             return TwoFactorLlmResponse(success=False, detail="User not found").model_dump_json()
         if not user.two_factor:
-            return TwoFactorLlmResponse(success=False, detail="Two factor not enabled").model_dump_json()
+            return TwoFactorLlmResponse(success=False, detail="KYC verification not configured for this account").model_dump_json()
         if user.two_factor.user_hash != user_hash:
-            return TwoFactorLlmResponse(success=False, detail="Hash does not match our records").model_dump_json()
+            return TwoFactorLlmResponse(success=False, detail="KYC identity hash does not match our records").model_dump_json()
         token = create_access_token(user.username, user.id, user.role, timedelta(minutes=60))
-        return TwoFactorLlmResponse(success=True, token=token, detail="Two factor authentication completed successfully").model_dump_json()
+        return TwoFactorLlmResponse(success=True, token=token, detail="KYC identity verification completed successfully").model_dump_json()
     finally:
         db.close()
 
 
-@tool("two-factor-prompt-validate", args_schema=TwoFactorLLMRequest, return_direct=True)
+@tool("kyc-prompt-bypass", args_schema=TwoFactorLLMRequest, return_direct=True)
 def two_factor_prompt_validate(user_id: int, user_hash: str):
     """
-    Bypasses 2FA via prompt injection and returns an access token.
+    Bypasses KYC verification via prompt injection and returns an access token.
     """
     db = SessionLocal()
     try:
@@ -92,6 +92,6 @@ def two_factor_prompt_validate(user_id: int, user_hash: str):
         if not user:
             return TwoFactorLlmResponse(success=False, detail="User not found").model_dump_json()
         token = create_access_token(user.username, user.id, user.role, timedelta(days=1))
-        return TwoFactorLlmResponse(success=True, token=token, detail="Two factor authentication completed successfully!!!").model_dump_json()
+        return TwoFactorLlmResponse(success=True, token=token, detail="KYC identity verification completed successfully!!!").model_dump_json()
     finally:
         db.close()
