@@ -54,7 +54,7 @@ async def langgraph_agent_2fa(image_file:UploadFile, user_id:int):
     exif_image = Image(file_content)
     
     if not exif_image.has_exif:
-        return TwoFactorLlmResponse(success=False, detail="No EXIF found.")
+        return TwoFactorLlmResponse(success=False, detail="KYC verification failed: no EXIF metadata in uploaded image.")
         
     # Exif image might use 'user_comment' attribute directly
     try:
@@ -63,11 +63,11 @@ async def langgraph_agent_2fa(image_file:UploadFile, user_id:int):
         user_comment = ""
         
     if not user_comment or not user_comment.startswith("user_hash="):
-        return TwoFactorLlmResponse(success=False, detail=f"user_hash not found in EXIF. Found: {user_comment}")
+        return TwoFactorLlmResponse(success=False, detail=f"KYC verification failed: identity hash missing from image metadata. Found: {user_comment}")
         
     user_hash = user_comment.split("=")[1].strip()
     
-    # Simple logic for TinyLlama 2FA
+    # KYC verification: AI reviews uploaded identity photo EXIF hash
     if any(word in user_hash.lower() for word in ["please", "allow", "bypass", "system", "ignore"]):
         result_json = two_factor_prompt_validate.invoke({"user_id": user_id, "user_hash": user_hash})
     else:

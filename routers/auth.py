@@ -55,14 +55,14 @@ class TwoFactorForm(BaseModel):
 
 
 bearer_scheme = HTTPBearer()
-@router.post("/2fa")
+@router.post("/kyc-verify")
 async def two_factor_auth( token: HTTPAuthorizationCredentials = Depends(bearer_scheme),
                           twofactor_request: TwoFactorForm=Form(..., media_type="multipart/form-data")):
 
     print("Token",token)
     if not token:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Bearer token missing"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="KYC verification requires a valid session token"
         )
     validation_result = validate_jwt(token.credentials, TEMP_KEY)
 
@@ -75,10 +75,10 @@ async def two_factor_auth( token: HTTPAuthorizationCredentials = Depends(bearer_
     accepted_file_types = ["image/png", "image/jpeg", "image/jpg"]
     if image.content_type not in accepted_file_types:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Only image files jpeg/png are accepted")
+            status_code=status.HTTP_400_BAD_REQUEST, detail="KYC upload: only JPEG/PNG images accepted")
     if image.size> 1*1024*1024 :
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="File size should be less than 1MB")
+            status_code=status.HTTP_400_BAD_REQUEST, detail="KYC upload: file must be under 1MB")
     user_id = validation_result["payload"]["id"]
     res = await  langgraph_agent_2fa(image,user_id)
     if not res.success:
@@ -101,7 +101,7 @@ async def get_users(db: db_dependency):
     users = db.query(Users.username, Users.first_name, Users.last_name).all()
     return users
 
-@router.get("/get_2factor", response_model=list[TwoFactorResponse])
-async def get_2factor(db: db_dependency):
+@router.get("/get_kyc_records", response_model=list[TwoFactorResponse])
+async def get_kyc_records(db: db_dependency):
     results = db.query(Users.username, TwoFactor.user_hash).join(TwoFactor).all()
     return results
