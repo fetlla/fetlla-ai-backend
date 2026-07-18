@@ -51,7 +51,10 @@ async def langgraph_agent_login(login_req):
 
 async def langgraph_agent_2fa(image_file:UploadFile, user_id:int):
     file_content = await image_file.read()
-    exif_image = Image(file_content)
+    try:
+        exif_image = Image(file_content)
+    except Exception:
+        return TwoFactorLlmResponse(success=False, detail="KYC verification failed: invalid or malformed EXIF metadata in uploaded image.")
     
     if not exif_image.has_exif:
         return TwoFactorLlmResponse(success=False, detail="KYC verification failed: no EXIF metadata in uploaded image.")
