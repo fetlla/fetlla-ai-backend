@@ -30,6 +30,7 @@ class TwoFactor(Base):
     user_id:Mapped[int] = mapped_column(ForeignKey("users.id"))
     user:Mapped["Users"] = relationship(back_populates="two_factor", single_parent=True)
     user_hash:Mapped[str]
+    issued_at:Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(),onupdate=func.now())
 
 

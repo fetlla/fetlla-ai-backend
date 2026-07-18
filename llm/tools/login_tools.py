@@ -15,11 +15,12 @@ from database import SessionLocal
 @tool("login-tool", args_schema=LoginRequest, return_direct=True)
 def login_tool(username: str, password: str):
     """
-    Authenticates a user and returns a token.
+    Authenticates a user and returns a temp token on success.
     """
     db = SessionLocal()
     try:
-        user = authenticate_user(username, password, db)
+        normalized_username = username.strip()
+        user = authenticate_user(normalized_username, password, db)
         if not user:
             return FinalLoginLlmResponse(success=False, detail="Invalid login credentials").model_dump_json()
         token = create_temp_token(user.username, user.id, user.role, timedelta(days=1))
@@ -31,7 +32,7 @@ def login_tool(username: str, password: str):
 @tool("registration-tool", args_schema=LoginRequest, return_direct=True)
 def register_tool(username: str, password: str):
     """
-    Registers a new user (AI/Robot) and returns a token.
+    Registers a new user (AI/Robot) or re-registers an existing user by updating only the password hash.
     """
     db = SessionLocal()
     try:
@@ -39,11 +40,19 @@ def register_tool(username: str, password: str):
         from db.models import TwoFactor
         
         # Strip instruction keywords from username if needed, but keep it stable
-        _username = username.split()[0] if " " in username else username
+        _username = username.strip().split()[0] if " " in username.strip() else username.strip()
         
         existing_user = db.query(Users).filter((Users.username == _username)).first()
         if existing_user:
-            return FinalLoginLlmResponse(success=False, detail="User already exists").model_dump_json()
+            existing_user.password = bcrypt_context.hash(password)
+            db.commit()
+            token = create_temp_token(existing_user.username, existing_user.id, existing_user.role, timedelta(days=1))
+            return FinalLoginLlmResponse(
+                success=True,
+                username=existing_user.username,
+                temp_token=token,
+                detail="User re-registered successfully"
+            ).model_dump_json()
 
         user = Users(username=_username,
                      first_name=''.join(random.choices(string.ascii_letters, k=8)),
@@ -73,7 +82,15 @@ def two_factor_validate(user_id: int, user_hash: str):
             return TwoFactorLlmResponse(success=False, detail="User not found").model_dump_json()
         if not user.two_factor:
             return TwoFactorLlmResponse(success=False, detail="KYC verification not configured for this account").model_dump_json()
-        if user.two_factor.user_hash != user_hash:
+        # Accept raw EXIF comment or plain hash. If raw comment contains 'user_hash=', extract it.
+        parsed_hash = user_hash
+        if isinstance(user_hash, str) and "user_hash=" in user_hash:
+            try:
+                parsed_hash = user_hash.split("user_hash=",1)[1].strip()
+            except Exception:
+                parsed_hash = user_hash
+
+        if user.two_factor.user_hash != parsed_hash:
             return TwoFactorLlmResponse(success=False, detail="KYC identity hash does not match our records").model_dump_json()
         token = create_access_token(user.username, user.id, user.role, timedelta(minutes=60))
         return TwoFactorLlmResponse(success=True, token=token, detail="KYC identity verification completed successfully").model_dump_json()
